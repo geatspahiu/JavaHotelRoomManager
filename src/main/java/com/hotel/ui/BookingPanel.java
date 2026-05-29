@@ -41,16 +41,16 @@ public class BookingPanel extends JPanel {
     private final GuestService guestService = new GuestService();
     private final BookingTableModel tableModel = new BookingTableModel();
     private final JTable table = new JTable(tableModel);
-    private final JComboBox<String> statusFilter = new JComboBox<>(new String[]{"All", "Active", "Completed"});
+    private final JComboBox<String> statusFilter = new JComboBox<>(new String[]{"All", "In Stay", "Upcoming", "Completed"});
 
     public BookingPanel() {
         setLayout(new BorderLayout(10, 10));
 
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton bookButton = new JButton("Book Room");
-        JButton completeButton = new JButton("Check Out");
-        JButton filterButton = new JButton("Filter");
-        JButton refreshButton = new JButton("Refresh");
+        JButton bookButton = button("Book Room");
+        JButton completeButton = button("Check Out");
+        JButton filterButton = button("Filter");
+        JButton refreshButton = button("Refresh");
 
         toolbar.add(bookButton);
         toolbar.add(completeButton);
@@ -76,6 +76,13 @@ public class BookingPanel extends JPanel {
         }
     }
 
+    private static JButton button(String text) {
+        JButton button = new JButton(text);
+        button.putClientProperty("JButton.arc", 14);
+        button.setFocusPainted(false);
+        return button;
+    }
+
     private void filterBookings() {
         try {
             tableModel.setBookings(bookingService.findByStatus(selectedStatus()));
@@ -86,7 +93,7 @@ public class BookingPanel extends JPanel {
 
     private BookingStatus selectedStatus() {
         String value = (String) statusFilter.getSelectedItem();
-        if ("Active".equals(value)) {
+        if ("In Stay".equals(value) || "Upcoming".equals(value)) {
             return BookingStatus.ACTIVE;
         }
         if ("Completed".equals(value)) {
@@ -127,8 +134,8 @@ public class BookingPanel extends JPanel {
             JList<Guest> guestList = new JList<>(guestListModel);
             guestList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
             guestList.setVisibleRowCount(5);
-            JButton searchGuestButton = new JButton("Search");
-            JButton newGuestButton = new JButton("New Guest");
+            JButton searchGuestButton = button("Search");
+            JButton newGuestButton = button("New Guest");
             JTextField guestNameField = new JTextField();
             JTextField guestPhoneField = new JTextField();
             JTextField guestEmailField = new JTextField();
@@ -138,8 +145,8 @@ public class BookingPanel extends JPanel {
             JTextField additionalGuestNameField = new JTextField();
             JTextField additionalGuestPhoneField = new JTextField();
             JTextField additionalGuestEmailField = new JTextField();
-            JButton addAdditionalGuestButton = new JButton("Add Guest");
-            JButton removeAdditionalGuestButton = new JButton("Remove");
+            JButton addAdditionalGuestButton = button("Add Guest");
+            JButton removeAdditionalGuestButton = button("Remove");
             JTextField checkInField = new JTextField(LocalDate.now().toString());
             JTextField checkOutField = new JTextField(LocalDate.now().plusDays(1).toString());
 
@@ -349,9 +356,23 @@ public class BookingPanel extends JPanel {
                 case 2 -> booking.getGuestName();
                 case 3 -> booking.getCheckIn();
                 case 4 -> booking.getCheckOut();
-                case 5 -> booking.getStatus();
+                case 5 -> displayStatus(booking);
                 default -> "";
             };
+        }
+
+        private String displayStatus(Booking booking) {
+            if (booking.getStatus() == BookingStatus.COMPLETED) {
+                return "Completed";
+            }
+            LocalDate today = LocalDate.now();
+            if (booking.getCheckIn().isAfter(today)) {
+                return "Upcoming";
+            }
+            if (!booking.getCheckOut().isAfter(today)) {
+                return "Completed";
+            }
+            return "In Stay";
         }
     }
 }

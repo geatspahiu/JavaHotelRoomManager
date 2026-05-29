@@ -7,10 +7,12 @@ import com.hotel.model.RoomType;
 import com.hotel.model.RoomTypeStats;
 
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -56,6 +58,9 @@ public class RoomDAO {
     }
 
     public void delete(int id) throws SQLException {
+        if (hasBookings(id)) {
+            throw new SQLException("Room cannot be deleted because it has booking history.");
+        }
         String sql = "DELETE FROM rooms WHERE id = ?";
         try (Connection connection = DatabaseConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -125,12 +130,49 @@ public class RoomDAO {
         }
     }
 
+    public Optional<Room> findByIdForUpdate(Connection connection, int id) throws SQLException {
+        String sql = "SELECT * FROM rooms WHERE id = ? FOR UPDATE";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, id);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    return Optional.of(mapRoom(resultSet));
+                }
+                return Optional.empty();
+            }
+        }
+    }
+
     public List<Room> findAvailableRooms() throws SQLException {
         String sql = "SELECT * FROM rooms WHERE available = TRUE ORDER BY room_number";
         try (Connection connection = DatabaseConnection.getConnection();
              Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(sql)) {
             return mapRooms(resultSet);
+        }
+    }
+
+    public List<Room> findAvailableRooms(LocalDate checkIn, LocalDate checkOut) throws SQLException {
+        String sql = """
+                SELECT r.*
+                FROM rooms r
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM bookings b
+                    WHERE b.room_id = r.id
+                      AND b.status = 'ACTIVE'
+                      AND b.check_in < ?
+                      AND b.check_out > ?
+                )
+                ORDER BY r.room_number
+                """;
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setDate(1, Date.valueOf(checkOut));
+            statement.setDate(2, Date.valueOf(checkIn));
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return mapRooms(resultSet);
+            }
         }
     }
 
@@ -156,6 +198,17 @@ public class RoomDAO {
                 statement.addBatch();
             }
             statement.executeBatch();
+        }
+    }
+
+    private boolean hasBookings(int id) throws SQLException {
+        String sql = "SELECT 1 FROM bookings WHERE room_id = ? LIMIT 1";
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, id);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next();
+            }
         }
     }
 

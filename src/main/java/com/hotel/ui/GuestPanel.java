@@ -27,10 +27,10 @@ public class GuestPanel extends JPanel {
         setLayout(new BorderLayout(10, 10));
 
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton addButton = new JButton("Add");
-        JButton editButton = new JButton("Update");
-        JButton deleteButton = new JButton("Delete");
-        JButton refreshButton = new JButton("Refresh");
+        JButton addButton = button("Add");
+        JButton editButton = button("Update");
+        JButton deleteButton = button("Delete");
+        JButton refreshButton = button("Refresh");
         toolbar.add(addButton);
         toolbar.add(editButton);
         toolbar.add(deleteButton);
@@ -51,6 +51,13 @@ public class GuestPanel extends JPanel {
         } catch (SQLException ex) {
             UiUtils.showError(this, ex);
         }
+    }
+
+    private static JButton button(String text) {
+        JButton button = new JButton(text);
+        button.putClientProperty("JButton.arc", 14);
+        button.setFocusPainted(false);
+        return button;
     }
 
     private void editSelectedGuest() {

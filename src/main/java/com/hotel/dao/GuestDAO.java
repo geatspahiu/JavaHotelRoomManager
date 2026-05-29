@@ -39,18 +39,44 @@ public class GuestDAO {
         String sql = "UPDATE guests SET name = ?, phone = ?, email = ? WHERE id = ?";
         try (Connection connection = DatabaseConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
-            fillGuestStatement(statement, guest);
-            statement.setInt(4, guest.getId());
-            statement.executeUpdate();
+            update(statement, guest);
+        }
+    }
+
+    public void update(Connection connection, Guest guest) throws SQLException {
+        String sql = "UPDATE guests SET name = ?, phone = ?, email = ? WHERE id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            update(statement, guest);
         }
     }
 
     public void delete(int id) throws SQLException {
+        if (hasBookings(id)) {
+            throw new SQLException("Guest cannot be deleted because it has booking history.");
+        }
         String sql = "DELETE FROM guests WHERE id = ?";
         try (Connection connection = DatabaseConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, id);
             statement.executeUpdate();
+        }
+    }
+
+    public Guest findById(Connection connection, int id) throws SQLException {
+        String sql = "SELECT * FROM guests WHERE id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, id);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    return new Guest(
+                            resultSet.getInt("id"),
+                            resultSet.getString("name"),
+                            resultSet.getString("phone"),
+                            resultSet.getString("email")
+                    );
+                }
+                throw new SQLException("Guest not found with id " + id);
+            }
         }
     }
 
@@ -102,21 +128,44 @@ public class GuestDAO {
     }
 
     private List<Guest> mapGuests(ResultSet resultSet) throws SQLException {
-            List<Guest> guests = new ArrayList<>();
-            while (resultSet.next()) {
-                guests.add(new Guest(
-                        resultSet.getInt("id"),
-                        resultSet.getString("name"),
-                        resultSet.getString("phone"),
-                        resultSet.getString("email")
-                ));
+        List<Guest> guests = new ArrayList<>();
+        while (resultSet.next()) {
+            guests.add(new Guest(
+                    resultSet.getInt("id"),
+                    resultSet.getString("name"),
+                    resultSet.getString("phone"),
+                    resultSet.getString("email")
+            ));
+        }
+        return guests;
+    }
+
+    private boolean hasBookings(int id) throws SQLException {
+        String sql = """
+                SELECT 1 FROM bookings WHERE guest_id = ?
+                UNION
+                SELECT 1 FROM booking_guests WHERE guest_id = ?
+                LIMIT 1
+                """;
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, id);
+            statement.setInt(2, id);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next();
             }
-            return guests;
+        }
     }
 
     private void fillGuestStatement(PreparedStatement statement, Guest guest) throws SQLException {
         statement.setString(1, guest.getName());
         statement.setString(2, guest.getPhone());
         statement.setString(3, guest.getEmail());
+    }
+
+    private void update(PreparedStatement statement, Guest guest) throws SQLException {
+        fillGuestStatement(statement, guest);
+        statement.setInt(4, guest.getId());
+        statement.executeUpdate();
     }
 }

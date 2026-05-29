@@ -22,7 +22,7 @@ public class StatsPanel extends JPanel {
         setLayout(new BorderLayout(10, 10));
 
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton refreshButton = new JButton("Refresh");
+        JButton refreshButton = button("Refresh");
         toolbar.add(refreshButton);
 
         JPanel stats = new JPanel(new GridLayout(0, 2, 12, 12));
@@ -48,6 +48,13 @@ public class StatsPanel extends JPanel {
         } catch (SQLException ex) {
             UiUtils.showError(this, ex);
         }
+    }
+
+    private static JButton button(String text) {
+        JButton button = new JButton(text);
+        button.putClientProperty("JButton.arc", 14);
+        button.setFocusPainted(false);
+        return button;
     }
 
     private JLabel label(String text) {

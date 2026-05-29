@@ -20,6 +20,7 @@ Java Hotel Room Manager helps manage hotel rooms, guests, and bookings from a cl
 - Mark bookings as completed during check-out.
 - Auto-complete expired bookings when their check-out date has passed.
 - Dark FlatLaf user interface.
+- Admin and worker login with persisted worker accounts.
 - MySQL setup query included below.
 
 ## Tech Stack
@@ -93,6 +94,21 @@ src/main/java/com/hotel
        CONSTRAINT fk_booking_guests_guest FOREIGN KEY (guest_id) REFERENCES guests(id)
            ON UPDATE CASCADE ON DELETE RESTRICT
    );
+
+   CREATE TABLE IF NOT EXISTS user_accounts (
+       id VARCHAR(36) PRIMARY KEY,
+       name VARCHAR(100) NOT NULL,
+       email VARCHAR(120) NOT NULL UNIQUE,
+       password VARCHAR(255) NOT NULL,
+       role ENUM('ADMIN', 'WORKER') NOT NULL,
+       active BOOLEAN NOT NULL DEFAULT TRUE,
+       last_active DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+   );
+
+   INSERT IGNORE INTO user_accounts (id, name, email, password, role, active)
+   VALUES
+       ('admin-1', 'Hotel Admin', 'admin@hotel1.com', 'admin123', 'ADMIN', TRUE),
+       ('worker-1', 'Front Desk', 'worker@hotel1.com', 'worker123', 'WORKER', TRUE);
    ```
 
 3. Update your MySQL credentials in:
@@ -117,6 +133,13 @@ From the project folder:
 mvn compile exec:java
 ```
 
+Default logins:
+
+```text
+Admin:  admin@hotel1.com  / admin123
+Worker: worker@hotel1.com / worker123
+```
+
 ## Build Check
 
 ```bash
@@ -135,3 +158,38 @@ mvn clean compile
 - The booking table displays the main guest as the booking name.
 - Additional guests are stored in `booking_guests`.
 - Expired active bookings are automatically marked completed before bookings are displayed.
+- Worker accounts are stored in `user_accounts`; adding, editing, deleting, and resetting worker passwords now persists across restarts.
+
+## Existing Database Migration
+
+If you already created the older database, run only this migration:
+
+```sql
+USE hotel_management;
+
+CREATE TABLE IF NOT EXISTS booking_guests (
+    booking_id INT NOT NULL,
+    guest_id INT NOT NULL,
+    main_guest BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (booking_id, guest_id),
+    CONSTRAINT fk_booking_guests_booking FOREIGN KEY (booking_id) REFERENCES bookings(id)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_booking_guests_guest FOREIGN KEY (guest_id) REFERENCES guests(id)
+        ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS user_accounts (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(120) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('ADMIN', 'WORKER') NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    last_active DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT IGNORE INTO user_accounts (id, name, email, password, role, active)
+VALUES
+    ('admin-1', 'Hotel Admin', 'admin@hotel1.com', 'admin123', 'ADMIN', TRUE),
+    ('worker-1', 'Front Desk', 'worker@hotel1.com', 'worker123', 'WORKER', TRUE);
+```

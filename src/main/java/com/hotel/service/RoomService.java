@@ -8,10 +8,12 @@ import com.hotel.model.RoomTypeStats;
 
 import java.sql.SQLException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
 public class RoomService {
+    private static final int MAX_ROOM_BATCH_SIZE = 250;
     private final RoomDAO roomDAO = new RoomDAO();
 
     public void save(Room room) throws SQLException {
@@ -34,8 +36,19 @@ public class RoomService {
         if (count < 1) {
             throw new IllegalArgumentException("Room count must be at least 1.");
         }
+        if (count > MAX_ROOM_BATCH_SIZE) {
+            throw new IllegalArgumentException("Room count cannot exceed " + MAX_ROOM_BATCH_SIZE + ".");
+        }
 
-        int start = Integer.parseInt(startRoomNumber);
+        int start;
+        try {
+            start = Integer.parseInt(startRoomNumber);
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("Starting room number is too large.");
+        }
+        if ((long) start + count - 1 > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Room range is too large.");
+        }
         int width = startRoomNumber.length();
         List<Room> rooms = new ArrayList<>();
         for (int i = 0; i < count; i++) {
@@ -63,6 +76,13 @@ public class RoomService {
         return roomDAO.findAvailableRooms();
     }
 
+    public List<Room> findAvailableRooms(LocalDate checkIn, LocalDate checkOut) throws SQLException {
+        if (checkIn == null || checkOut == null || !checkOut.isAfter(checkIn)) {
+            throw new IllegalArgumentException("Check-out date must be after check-in date.");
+        }
+        return roomDAO.findAvailableRooms(checkIn, checkOut);
+    }
+
     public HotelStats getStats() throws SQLException {
         return roomDAO.getStats();
     }
@@ -80,6 +100,9 @@ public class RoomService {
         }
         if (room.getPrice() == null || room.getPrice().signum() < 0) {
             throw new IllegalArgumentException("Price must be zero or greater.");
+        }
+        if (room.getPrice().scale() > 2) {
+            throw new IllegalArgumentException("Price can have at most two decimal places.");
         }
     }
 }

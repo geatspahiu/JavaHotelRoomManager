@@ -33,9 +33,9 @@ public class RoomPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        JButton addButton = new JButton("Add Room");
-        JButton bulkAddButton = new JButton("Bulk Add");
-        JButton refreshButton = new JButton("Refresh");
+        JButton addButton = button("Add Room");
+        JButton bulkAddButton = button("Bulk Add");
+        JButton refreshButton = button("Refresh");
         toolbar.add(addButton);
         toolbar.add(bulkAddButton);
         toolbar.add(refreshButton);
@@ -92,6 +92,13 @@ public class RoomPanel extends JPanel {
         JLabel label = new JLabel("0");
         label.setFont(label.getFont().deriveFont(Font.BOLD, 20f));
         return label;
+    }
+
+    private static JButton button(String text) {
+        JButton button = new JButton(text);
+        button.putClientProperty("JButton.arc", 14);
+        button.setFocusPainted(false);
+        return button;
     }
 
     private void setAllStatsToZero() {

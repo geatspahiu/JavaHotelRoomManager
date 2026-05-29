@@ -10,6 +10,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -102,6 +103,48 @@ public class BookingDAO {
         }
     }
 
+    public boolean hasActiveOverlapForRoom(Connection connection, int roomId, LocalDate checkIn, LocalDate checkOut) throws SQLException {
+        String sql = """
+                SELECT 1
+                FROM bookings
+                WHERE room_id = ?
+                  AND status = ?
+                  AND check_in < ?
+                  AND check_out > ?
+                LIMIT 1
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, roomId);
+            statement.setString(2, BookingStatus.ACTIVE.name());
+            statement.setDate(3, Date.valueOf(checkOut));
+            statement.setDate(4, Date.valueOf(checkIn));
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next();
+            }
+        }
+    }
+
+    public boolean hasActiveBookingForRoomOnDate(Connection connection, int roomId, LocalDate date) throws SQLException {
+        String sql = """
+                SELECT 1
+                FROM bookings
+                WHERE room_id = ?
+                  AND status = ?
+                  AND check_in <= ?
+                  AND check_out > ?
+                LIMIT 1
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, roomId);
+            statement.setString(2, BookingStatus.ACTIVE.name());
+            statement.setDate(3, Date.valueOf(date));
+            statement.setDate(4, Date.valueOf(date));
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next();
+            }
+        }
+    }
+
     public List<Integer> findExpiredActiveRoomIds(Connection connection, java.time.LocalDate today) throws SQLException {
         String sql = "SELECT room_id FROM bookings WHERE status = ? AND check_out < ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -129,6 +172,19 @@ public class BookingDAO {
 
     public Booking findById(Connection connection, int bookingId) throws SQLException {
         String sql = baseSelect() + " WHERE b.id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, bookingId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    return mapBooking(resultSet);
+                }
+                throw new SQLException("Booking not found with id " + bookingId);
+            }
+        }
+    }
+
+    public Booking findByIdForUpdate(Connection connection, int bookingId) throws SQLException {
+        String sql = baseSelect() + " WHERE b.id = ? FOR UPDATE";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, bookingId);
             try (ResultSet resultSet = statement.executeQuery()) {
